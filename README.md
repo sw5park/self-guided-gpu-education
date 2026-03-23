@@ -1,11 +1,3 @@
-# From the Warp to the Token Engine
-
-Most GPU education is wrong in one of two ways. It either traps you in toy CUDA or it hands you libraries first and calls that understanding.
-
-This path keeps only the highest-leverage pieces. Pick one box, one model family, one dtype, and one serving target at the start, then refuse to get generic later.
-
-A good default is `4090 or H100`, `Llama-3.1-8B-class dense decoder`, `BF16`, and `single-GPU decode latency plus respectable throughput`. The end artifact is a token engine whose hot path you actually own because you understand the machine below it.
-
 ## Section 1: Product: Freeze the battlefield -- 0.5 weeks
 
 - Freezing product constraints (`decision`, `0`) -- Pick one checkpoint format, one architecture family, one KV layout target, and one serving objective, then freeze them. Industrial leverage comes from going deep on one real shape regime, not from being vaguely compatible with everything.
@@ -59,21 +51,3 @@ A good default is `4090 or H100`, `Llama-3.1-8B-class dense decoder`, `BF16`, an
 - Inspecting emitted instructions (`PTX/SASS`, `150`) -- Verify that the compiler actually gave you the path you think you wrote. Eventually you need to know what the compiler really asked the GPU to do, not what the CUDA source politely suggested.
 - Building a tensor-core or Hopper path (`CUDA C++/PTX`, `600`) -- Add a tensor-core path for the exact shapes that dominate the chosen product, not a general tensor-core framework. If the card is Hopper, this is where `TMA` and `WGMMA` enter; if it is not, stay honest and push the best path your card actually supports.
 - Reading `CUTLASS` and `CuTe` (`C++`, `0`) -- Only now do you read them. At this point you can steal abstractions from strong engineers instead of outsourcing your understanding to them.
-
-## What gets cut
-
-- `vector add` -- Fine as a smoke test and useless as a milestone. If a build does not unlock the next build, it is out.
-- Copy zoo -- Plain copy variants are useful for a sanity check but too weak to be a centerpiece. `transpose` is the movement kernel worth respecting because coalescing and shared-memory behavior collide there.
-- Genericity theater -- Universal frontends, generic GEMM frameworks, and compatibility with every model are seductive ways to avoid learning the real shape regime. Industrially, narrow and deep beats wide and vague.
-- `WMMA` tourism -- Calling one tensor-core API does not teach modern compute kernels. Modern kernel work is about feeding the machine, not touching the machine once.
-- `CUTLASS` first -- Starting with vendor abstractions gives you vocabulary before judgment. That is exactly how people become library monkeys.
-
-## Compressed verdict
-
-- `C` owns the machine model because it is the cleanest way to make execution, synchronization, and transactions explicit.
-- `Python` owns the compiler, sweep tools, and runtime glue because you need to control the graph and its search space, not just hand-write kernels forever.
-- `CUDA C++` owns the first honest kernels because you need one direct encounter with the machine before async or Hopper-specific machinery.
-- `PTX` and `SASS` own the truth when abstractions leak because eventually you need to verify what the compiler actually asked the GPU to do.
-- The capstone is a token engine with owned decode attention, not a benchmark chart of isolated kernels.
-
-If this path works, Eric will own what most engineers quietly take for granted: warp execution, transaction formation, shared-memory behavior, online softmax, KV-cache layout, decode/prefill split, emitted instructions, and the exact point where library composition stops working. That is the kind of understanding that prevails in industrial production.
